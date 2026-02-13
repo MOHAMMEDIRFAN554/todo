@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 
 interface Todo {
-  id: number;
+  _id?: string; // MongoDB uses _id
+  id?: number;  // Fallback for old local todos if any
   text: string;
   completed: boolean;
   dueDate?: string;
@@ -39,19 +40,36 @@ const CalendarIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
 );
 
+const LogOutIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+);
+
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [inputDate, setInputDate] = useState("");
   const [inputTime, setInputTime] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [token, setToken] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    const savedToken = localStorage.getItem("todoToken");
+    if (savedToken) {
+      setToken(savedToken);
+      fetchTodos(savedToken);
+    } else {
+      setIsLoading(false);
+    }
+
     if (typeof window !== 'undefined' && "Notification" in window) {
       if (Notification.permission !== "granted" && Notification.permission !== "denied") {
         Notification.requestPermission();
@@ -60,7 +78,57 @@ export default function Home() {
     audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
   }, []);
 
+  const fetchTodos = async (authToken: string) => {
+    try {
+      const res = await fetch("/api/todos", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTodos(data);
+      } else if (res.status === 401) {
+        handleLogout();
+      }
+    } catch (error) {
+      console.error("Failed to fetch todos", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("todoToken", data.token);
+        setToken(data.token);
+        fetchTodos(data.token);
+      } else {
+        setLoginError(data.error || "Login failed");
+      }
+    } catch (error) {
+      setLoginError("An error occurred during login");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("todoToken");
+    setToken(null);
+    setTodos([]);
+    setUsername("");
+    setPassword("");
+  };
+
   useEffect(() => {
+    if (!token) return;
+
     const interval = setInterval(() => {
       const now = new Date();
       const currentDate = now.toISOString().split('T')[0];
@@ -73,6 +141,7 @@ export default function Home() {
             if (todo.dueDate < currentDate || (todo.dueDate === currentDate && todo.dueTime <= currentTime)) {
               triggerNotification(todo);
               changed = true;
+              updateTodoStatus(todo._id!, { notified: true });
               return { ...todo, notified: true };
             }
           }
@@ -83,7 +152,23 @@ export default function Home() {
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [todos]);
+  }, [todos, token]);
+
+  const updateTodoStatus = async (id: string, updates: Partial<Todo>) => {
+    if (!token) return;
+    try {
+      await fetch(`/api/todos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+    } catch (error) {
+      console.error("Failed to update todo status", error);
+    }
+  };
 
   const triggerNotification = (todo: Todo) => {
     if (typeof window !== 'undefined' && "Notification" in window && Notification.permission === "granted") {
@@ -104,48 +189,112 @@ export default function Home() {
     return "Good evening";
   };
 
-  const addTodo = () => {
-    if (inputValue.trim() === "") return;
-    const newTodo: Todo = {
-      id: Date.now(),
+  const addTodo = async () => {
+    if (inputValue.trim() === "" || !token) return;
+    const newTodo: Omit<Todo, "_id"> = {
       text: inputValue,
       completed: false,
       dueDate: inputDate || undefined,
       dueTime: inputTime || undefined,
       notified: false,
     };
-    setTodos([newTodo, ...todos]);
-    setInputValue("");
-    setInputDate("");
-    setInputTime("");
+
+    try {
+      const res = await fetch("/api/todos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newTodo),
+      });
+      if (res.ok) {
+        const savedTodo = await res.json();
+        setTodos([savedTodo, ...todos]);
+        setInputValue("");
+        setInputDate("");
+        setInputTime("");
+      }
+    } catch (error) {
+      console.error("Failed to add todo", error);
+    }
   };
 
-  const deleteTodo = (id: number) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
+  const deleteTodo = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/todos/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setTodos(todos.filter((todo) => todo._id !== id));
+      }
+    } catch (error) {
+      console.error("Failed to delete todo", error);
+    }
   };
 
-  const toggleComplete = (id: number) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed, notified: !todo.completed ? todo.notified : false } : todo
-      )
-    );
+  const toggleComplete = async (todo: Todo) => {
+    if (!token || !todo._id) return;
+    const newCompleted = !todo.completed;
+    const updates = {
+      completed: newCompleted,
+      notified: newCompleted ? todo.notified : false
+    };
+
+    try {
+      const res = await fetch(`/api/todos/${todo._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const updatedTodo = await res.json();
+        setTodos(todos.map((t) => (t._id === todo._id ? updatedTodo : t)));
+      }
+    } catch (error) {
+      console.error("Failed to toggle complete", error);
+    }
   };
 
-  const startEditing = (id: number, todo: Todo) => {
-    setEditingId(id);
+  const startEditing = (todo: Todo) => {
+    if (!todo._id) return;
+    setEditingId(todo._id);
     setEditValue(todo.text);
     setEditDate(todo.dueDate || "");
     setEditTime(todo.dueTime || "");
   };
 
-  const saveEdit = (id: number) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, text: editValue, dueDate: editDate || undefined, dueTime: editTime || undefined, notified: false } : todo
-      )
-    );
-    setEditingId(null);
+  const saveEdit = async (id: string) => {
+    if (!token) return;
+    const updates = {
+      text: editValue,
+      dueDate: editDate || undefined,
+      dueTime: editTime || undefined,
+      notified: false
+    };
+
+    try {
+      const res = await fetch(`/api/todos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const updatedTodo = await res.json();
+        setTodos(todos.map((todo) => (todo._id === id ? updatedTodo : todo)));
+        setEditingId(null);
+      }
+    } catch (error) {
+      console.error("Failed to save edit", error);
+    }
   };
 
   const filteredTodos = todos.filter(todo => {
@@ -156,6 +305,69 @@ export default function Home() {
 
   const completionRate = todos.length > 0 ? Math.round((todos.filter(t => t.completed).length / todos.length) * 100) : 0;
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <main className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans antialiased text-slate-900">
+        <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-blue-50 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 text-blue-600">
+              <CalendarIcon className="w-10 h-10" />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">System Access</h2>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Awaiting authorization</p>
+          </div>
+          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 transition-all font-bold text-slate-800"
+                  placeholder="admin123"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 mb-2 block">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 transition-all font-bold text-slate-800"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {loginError && (
+              <p className="text-rose-500 text-xs font-black uppercase tracking-widest text-center mt-2 animate-pulse">
+                {loginError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-5 px-4 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase tracking-widest text-xs hover:bg-blue-600 transition-all shadow-xl hover:shadow-blue-200 transform hover:-translate-y-1 active:translate-y-0"
+            >
+              Initiate Login
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#F8FAFC] py-8 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-900">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -164,8 +376,18 @@ export default function Home() {
         <header className="relative py-8 px-1 rounded-3xl overflow-hidden">
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
+              <div className="flex items-center gap-4 mb-4">
+                <button
+                  onClick={handleLogout}
+                  className="p-2 bg-white rounded-xl border border-slate-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all group"
+                  title="Logout"
+                >
+                  <LogOutIcon className="w-5 h-5" />
+                </button>
+                <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-full">Secure Session</span>
+              </div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight sm:text-5xl mb-2">
-                {getGreeting()}, <span className="text-blue-600">User</span>
+                {getGreeting()}, <span className="text-blue-600">Admin</span>
               </h1>
               <p className="text-lg text-slate-500 font-medium">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -222,7 +444,6 @@ export default function Home() {
                       className="bg-transparent border-none p-0 text-xs font-black uppercase tracking-widest text-slate-500 focus:ring-0 w-[65px] cursor-pointer font-mono"
                     />
                   </div>
-                  {/* Tooltip or Label */}
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-tighter px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     Optional Reminder
                   </span>
@@ -270,7 +491,7 @@ export default function Home() {
             <div className="grid grid-cols-1 gap-5">
               {filteredTodos.map((todo) => (
                 <div
-                  key={todo.id}
+                  key={todo._id}
                   className={`group relative bg-white rounded-[2rem] border-2 transition-all duration-500 ${todo.completed
                       ? "border-slate-50 bg-slate-50/10 grayscale opacity-60"
                       : "border-transparent shadow-lg shadow-slate-200/40 hover:border-blue-100 hover:shadow-xl hover:shadow-blue-100/20"
@@ -279,7 +500,7 @@ export default function Home() {
                   <div className="flex items-start gap-6 p-6">
                     {/* Checkbox */}
                     <button
-                      onClick={() => toggleComplete(todo.id)}
+                      onClick={() => toggleComplete(todo)}
                       className={`mt-1.5 flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ${todo.completed
                           ? "bg-green-500 border-green-500 text-white rotate-[360deg] shadow-lg shadow-green-200"
                           : "border-slate-100 bg-slate-50/50 group-hover:border-blue-400 group-hover:bg-blue-50/30 group-hover:scale-110"
@@ -288,7 +509,7 @@ export default function Home() {
                       {todo.completed && <CheckIcon className="w-5 h-5" />}
                     </button>
 
-                    {editingId === todo.id ? (
+                    {editingId === todo._id ? (
                       <div className="flex-grow space-y-5 pr-16 animate-in fade-in slide-in-from-left-4">
                         <input
                           type="text"
@@ -314,7 +535,7 @@ export default function Home() {
                             />
                           </div>
                           <div className="ml-auto flex gap-2">
-                            <button onClick={() => saveEdit(todo.id)} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg hover:bg-blue-600 transition-all"><CheckIcon className="w-5 h-5" /></button>
+                            <button onClick={() => saveEdit(todo._id!)} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg hover:bg-blue-600 transition-all"><CheckIcon className="w-5 h-5" /></button>
                             <button onClick={() => setEditingId(null)} className="p-3 bg-white text-slate-400 border border-slate-100 rounded-xl hover:bg-slate-50 transition-all"><XIcon className="w-5 h-5" /></button>
                           </div>
                         </div>
@@ -323,7 +544,7 @@ export default function Home() {
                       <div className="flex-grow pr-16">
                         <div className="flex flex-col">
                           <span
-                            onClick={() => toggleComplete(todo.id)}
+                            onClick={() => toggleComplete(todo)}
                             className={`text-2xl font-bold cursor-pointer transition-all duration-500 ${todo.completed ? "text-slate-300 line-through tracking-normal" : "text-slate-800 tracking-tight"
                               }`}
                           >
@@ -359,14 +580,14 @@ export default function Home() {
                   {!editingId && (
                     <div className="absolute top-1/2 -translate-y-1/2 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
                       <button
-                        onClick={() => startEditing(todo.id, todo)}
+                        onClick={() => startEditing(todo)}
                         className="w-12 h-12 flex items-center justify-center bg-white text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300"
                         title="Edit Module"
                       >
                         <EditIcon className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={() => deleteTodo(todo.id)}
+                        onClick={() => deleteTodo(todo._id!)}
                         className="w-12 h-12 flex items-center justify-center bg-white text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300"
                         title="Terminate Module"
                       >
