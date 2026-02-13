@@ -80,7 +80,7 @@ export default function Home() {
         });
         return changed ? newTodos : prevTodos;
       });
-    }, 15000); // Check every 15 seconds for more responsiveness
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [todos]);
@@ -114,7 +114,7 @@ export default function Home() {
       dueTime: inputTime || undefined,
       notified: false,
     };
-    setTodos([newTodo, ...todos]); // Add new tasks to the top
+    setTodos([newTodo, ...todos]);
     setInputValue("");
     setInputDate("");
     setInputTime("");
@@ -192,140 +192,161 @@ export default function Home() {
         </header>
 
         {/* Task Creation Card */}
-        <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-2 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200 transition-all duration-300 transform active:scale-[0.995]">
-          <div className="p-6">
+        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-2 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300 transform active:scale-[0.998]">
+          <div className="p-8">
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && addTodo()}
-              placeholder="Add a new task..."
-              className="w-full text-2xl font-medium bg-transparent border-none focus:ring-0 placeholder-slate-300 py-2"
+              placeholder="What's on your mind?"
+              className="w-full text-2xl font-bold bg-transparent border-none focus:ring-0 placeholder-slate-300 py-2"
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-4 mt-6 pt-6 border-t border-slate-50">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl group focus-within:bg-blue-50 transition-colors">
-                  <CalendarIcon className="text-slate-400 group-focus-within:text-blue-500" />
-                  <input
-                    type="date"
-                    value={inputDate}
-                    onChange={(e) => setInputDate(e.target.value)}
-                    className="bg-transparent border-none p-0 text-sm font-semibold text-slate-600 focus:ring-0"
-                  />
-                  <div className="w-px h-4 bg-slate-200 mx-1" />
-                  <input
-                    type="time"
-                    value={inputTime}
-                    onChange={(e) => setInputTime(e.target.value)}
-                    className="bg-transparent border-none p-0 text-sm font-semibold text-slate-600 focus:ring-0"
-                  />
+            <div className="flex flex-wrap items-center justify-between gap-6 mt-8 pt-8 border-t border-slate-50">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="group relative flex items-center gap-3 bg-slate-50/50 hover:bg-blue-50/50 border border-slate-100 hover:border-blue-100 px-5 py-2.5 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-blue-100/50">
+                  <CalendarIcon className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={inputDate}
+                      onChange={(e) => setInputDate(e.target.value)}
+                      className="bg-transparent border-none p-0 text-xs font-black uppercase tracking-widest text-slate-500 focus:ring-0 w-[105px] cursor-pointer"
+                    />
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-200 group-hover:bg-blue-200 mx-1" />
+                    <input
+                      type="time"
+                      value={inputTime}
+                      onChange={(e) => setInputTime(e.target.value)}
+                      className="bg-transparent border-none p-0 text-xs font-black uppercase tracking-widest text-slate-500 focus:ring-0 w-[65px] cursor-pointer font-mono"
+                    />
+                  </div>
+                  {/* Tooltip or Label */}
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-tighter px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    Optional Reminder
+                  </span>
                 </div>
               </div>
 
               <button
                 onClick={addTodo}
                 disabled={!inputValue.trim()}
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-slate-900 text-white font-bold hover:bg-black transition-all shadow-lg hover:shadow-slate-300 disabled:opacity-50 disabled:shadow-none"
+                className="inline-flex items-center gap-3 px-10 py-4 rounded-[1.5rem] bg-slate-900 text-white font-black uppercase tracking-widest text-xs hover:bg-blue-600 transition-all shadow-xl hover:shadow-blue-200 disabled:opacity-30 disabled:shadow-none translate-y-0 hover:-translate-y-1 active:translate-y-0"
               >
-                <PlusIcon className="w-6 h-6" /> Add Task
+                <PlusIcon className="w-5 h-5" /> Launch Task
               </button>
             </div>
           </div>
         </div>
 
         {/* Filter Section */}
-        <div className="flex items-center justify-between px-2">
-          <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl">
+        <div className="flex items-center justify-between px-4">
+          <div className="flex gap-2 p-1.5 bg-slate-100/80 backdrop-blur rounded-[1.25rem] border border-slate-200/50 shadow-inner">
             {(['all', 'active', 'completed'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-6 py-2 rounded-xl text-sm font-bold capitalize transition-all ${filter === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                className={`px-8 py-2.5 rounded-[0.9rem] text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${filter === f
+                    ? "bg-white text-slate-900 shadow-md transform scale-[1.05]"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
                   }`}
               >
                 {f}
               </button>
             ))}
           </div>
-          <p className="hidden sm:block text-sm font-bold text-slate-400">
-            {filteredTodos.length} Tasks
-          </p>
+          <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-slate-100 shadow-sm">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {filteredTodos.length} Active Modules
+            </span>
+          </div>
         </div>
 
-        {/* Tasks Grid/List */}
-        <div className="space-y-4">
+        {/* Tasks List */}
+        <div className="space-y-5">
           {filteredTodos.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-5">
               {filteredTodos.map((todo) => (
                 <div
                   key={todo.id}
-                  className={`group relative bg-white rounded-3xl border-2 p-5 transition-all duration-300 hover:border-slate-300 ${todo.completed ? "border-slate-50 bg-slate-50/20" : "border-white shadow-sm"
+                  className={`group relative bg-white rounded-[2rem] border-2 transition-all duration-500 ${todo.completed
+                      ? "border-slate-50 bg-slate-50/10 grayscale opacity-60"
+                      : "border-transparent shadow-lg shadow-slate-200/40 hover:border-blue-100 hover:shadow-xl hover:shadow-blue-100/20"
                     }`}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-6 p-6">
                     {/* Checkbox */}
                     <button
                       onClick={() => toggleComplete(todo.id)}
-                      className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full border-3 flex items-center justify-center transition-all ${todo.completed
-                        ? "bg-green-500 border-green-500 text-white scale-110"
-                        : "border-slate-200 bg-white group-hover:border-blue-500 scale-100"
+                      className={`mt-1.5 flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ${todo.completed
+                          ? "bg-green-500 border-green-500 text-white rotate-[360deg] shadow-lg shadow-green-200"
+                          : "border-slate-100 bg-slate-50/50 group-hover:border-blue-400 group-hover:bg-blue-50/30 group-hover:scale-110"
                         }`}
                     >
-                      {todo.completed && <CheckIcon />}
+                      {todo.completed && <CheckIcon className="w-5 h-5" />}
                     </button>
 
                     {editingId === todo.id ? (
-                      <div className="flex-grow space-y-4 pr-12">
+                      <div className="flex-grow space-y-5 pr-16 animate-in fade-in slide-in-from-left-4">
                         <input
                           type="text"
                           autoFocus
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
-                          className="w-full text-xl font-bold bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 py-2"
+                          className="w-full text-2xl font-bold bg-slate-50/50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 py-3 px-4 transition-all"
                         />
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="date"
-                            value={editDate}
-                            onChange={(e) => setEditDate(e.target.value)}
-                            className="bg-slate-50 border-none rounded-lg text-sm font-bold focus:ring-1 focus:ring-blue-500"
-                          />
-                          <input
-                            type="time"
-                            value={editTime}
-                            onChange={(e) => setEditTime(e.target.value)}
-                            className="bg-slate-50 border-none rounded-lg text-sm font-bold focus:ring-1 focus:ring-blue-500"
-                          />
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
+                            <input
+                              type="date"
+                              value={editDate}
+                              onChange={(e) => setEditDate(e.target.value)}
+                              className="bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer"
+                            />
+                            <div className="w-1 h-1 rounded-full bg-slate-300 mx-1" />
+                            <input
+                              type="time"
+                              value={editTime}
+                              onChange={(e) => setEditTime(e.target.value)}
+                              className="bg-transparent border-none p-0 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer font-mono"
+                            />
+                          </div>
                           <div className="ml-auto flex gap-2">
-                            <button onClick={() => saveEdit(todo.id)} className="p-3 bg-green-500 text-white rounded-xl shadow-lg shadow-green-100 hover:bg-green-600 transition-all"><CheckIcon className="w-5 h-5" /></button>
-                            <button onClick={() => setEditingId(null)} className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-all"><XIcon className="w-5 h-5" /></button>
+                            <button onClick={() => saveEdit(todo.id)} className="p-3 bg-slate-900 text-white rounded-xl shadow-lg hover:bg-blue-600 transition-all"><CheckIcon className="w-5 h-5" /></button>
+                            <button onClick={() => setEditingId(null)} className="p-3 bg-white text-slate-400 border border-slate-100 rounded-xl hover:bg-slate-50 transition-all"><XIcon className="w-5 h-5" /></button>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex-grow pr-12">
+                      <div className="flex-grow pr-16">
                         <div className="flex flex-col">
                           <span
                             onClick={() => toggleComplete(todo.id)}
-                            className={`text-xl font-bold cursor-pointer transition-all duration-300 ${todo.completed ? "text-slate-300 line-through" : "text-slate-800"
+                            className={`text-2xl font-bold cursor-pointer transition-all duration-500 ${todo.completed ? "text-slate-300 line-through tracking-normal" : "text-slate-800 tracking-tight"
                               }`}
                           >
                             {todo.text}
                           </span>
 
                           {(todo.dueDate || todo.dueTime) && (
-                            <div className={`inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full text-xs font-bold leading-none ${todo.completed
-                              ? "bg-slate-100 text-slate-400"
-                              : todo.notified
-                                ? "bg-rose-100 text-rose-600 animate-pulse"
-                                : "bg-blue-50 text-blue-600"
+                            <div className={`inline-flex items-center gap-2.5 mt-3 self-start px-4 py-1.5 rounded-xl text-[10px] font-black tracking-[0.15em] leading-none transition-all duration-500 ${todo.completed
+                                ? "bg-slate-100/50 text-slate-400"
+                                : todo.notified
+                                  ? "bg-rose-500 text-white shadow-lg shadow-rose-200 animate-pulse"
+                                  : "bg-blue-600 text-white shadow-lg shadow-blue-100"
                               }`}>
-                              <BellIcon className="w-3 h-3" />
-                              <span>
-                                {todo.dueDate && new Date(todo.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                {todo.dueTime && ` at ${todo.dueTime}`}
-                                {todo.notified && !todo.completed && " • OVERDUE"}
+                              <BellIcon className="w-3.5 h-3.5" />
+                              <span className="uppercase">
+                                {todo.dueDate && new Date(todo.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {todo.dueTime && (
+                                  <>
+                                    <span className="mx-2 opacity-50">|</span>
+                                    <span className="font-mono">{todo.dueTime}</span>
+                                  </>
+                                )}
+                                {todo.notified && !todo.completed && " • SYSTEM OVERLOAD"}
                               </span>
                             </div>
                           )}
@@ -334,22 +355,22 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Desktop Actions */}
+                  {/* High-Tech Actions */}
                   {!editingId && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-4 group-hover:translate-x-0">
+                    <div className="absolute top-1/2 -translate-y-1/2 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
                       <button
                         onClick={() => startEditing(todo.id, todo)}
-                        className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
-                        title="Edit task"
+                        className="w-12 h-12 flex items-center justify-center bg-white text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300"
+                        title="Edit Module"
                       >
-                        <EditIcon />
+                        <EditIcon className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => deleteTodo(todo.id)}
-                        className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
-                        title="Delete task"
+                        className="w-12 h-12 flex items-center justify-center bg-white text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300"
+                        title="Terminate Module"
                       >
-                        <TrashIcon />
+                        <TrashIcon className="w-5 h-5" />
                       </button>
                     </div>
                   )}
@@ -357,18 +378,26 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-24 bg-white rounded-[3rem] border border-slate-100 shadow-sm">
-              <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
-                <PlusIcon className="w-12 h-12" />
+            <div className="text-center py-32 bg-white rounded-[3.5rem] border-2 border-dashed border-slate-100 shadow-sm relative overflow-hidden group">
+              <div className="absolute inset-0 bg-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="relative z-10">
+                <div className="w-28 h-28 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 text-slate-200 group-hover:rotate-[15deg] transition-all duration-700">
+                  <PlusIcon className="w-14 h-14" />
+                </div>
+                <h3 className="text-3xl font-black text-slate-900 mb-3 tracking-tighter">Zero Objectives Remaining</h3>
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Awaiting new directives</p>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Clean Slate!</h3>
-              <p className="text-slate-400 font-medium">Nothing on the menu right now.</p>
             </div>
           )}
         </div>
+
         {todos.length > 0 && (
-          <footer className="mt-8 text-center text-sm text-gray-400">
-            {todos.filter(t => t.completed).length} of {todos.length} tasks completed
+          <footer className="mt-12 flex items-center justify-center gap-4">
+            <div className="h-px w-24 bg-gradient-to-r from-transparent to-slate-200" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
+              {todos.filter(t => t.completed).length} / {todos.length} Protocols Finalized
+            </p>
+            <div className="h-px w-24 bg-gradient-to-l from-transparent to-slate-200" />
           </footer>
         )}
       </div>
